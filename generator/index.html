@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ご報告ジェネレータ — verytired.net</title>
+<link rel="icon" href="/favicon.svg">
+<meta name="description" content="X のご報告画像 247 枚によく出てくる言い回しで、ご報告の画像を作る。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Kurenaido&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #121214; --surface: #1a1a19; --line: #2c2c2a; --fg: #f0efec; --fg2: #c3c2b7; --dim: #8a8a84; --accent: #5cc8ff;
+    --serif: "Shippori Mincho B1", serif; --sans: "Zen Kaku Gothic New", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --gut: 16px;
+  }
+  @media (min-width: 760px) { :root { --gut: 48px; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.8 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gut); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  .site { display: flex; justify-content: space-between; gap: 16px; padding: 12px var(--gut); font: 13px/1.5 var(--mono); }
+  .site a { text-decoration: none; color: var(--dim); } .site a:hover { color: var(--fg); }
+  .site h1 { margin: 0; font: inherit; } .site h1 a { color: var(--accent); }
+
+  .hero { padding-top: 56px; padding-bottom: 32px; border-bottom: 1px solid var(--line); }
+  .kicker { font: 12px/1 var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; margin: 0 0 20px; }
+  .kicker a { color: var(--dim); }
+  .hero h2 { font: 800 clamp(44px, 9vw, 104px)/1 var(--serif); margin: 0; letter-spacing: -.02em; }
+  .lead { font-size: clamp(15px, 1.8vw, 18px); color: var(--fg2); max-width: 36em; margin: 20px 0 0; }
+
+  .gen { display: grid; grid-template-columns: minmax(0, 1fr); gap: 40px; padding-top: 40px; padding-bottom: 72px; }
+  @media (min-width: 900px) { .gen { grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); align-items: start; } .preview { position: sticky; top: 16px; } }
+  .form { display: flex; flex-direction: column; gap: 22px; }
+  .field > span { display: block; font-size: 12px; color: var(--dim); margin-bottom: 8px; letter-spacing: .04em; }
+  .field input { width: 100%; background: none; border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; font-size: 15px; }
+  .field input:focus { outline: none; border-color: var(--fg2); }
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pills button { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 13px; color: var(--fg2); }
+  .pills button:hover { color: var(--fg); border-color: var(--fg2); }
+  .pills button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+  .acts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .acts button, .acts a { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 10px 18px; cursor: pointer; font-size: 14px; text-decoration: none; }
+  .acts .main { background: var(--fg); color: var(--bg); border-color: var(--fg); font-weight: 700; }
+  .acts .main:hover { background: var(--accent); border-color: var(--accent); }
+  .acts button:not(.main):hover { border-color: var(--fg2); }
+
+  .score { border-top: 1px solid var(--line); padding-top: 22px; }
+  .score h3 { font: 600 20px/1.4 var(--serif); margin: 0 0 4px; }
+  .score p { margin: 0 0 14px; font-size: 13px; color: var(--dim); }
+  .score .big { font: 600 44px/1.1 var(--mono); letter-spacing: -.03em; }
+  .bars div { display: grid; grid-template-columns: 8.5em minmax(0, 1fr) 4.5em; gap: 10px; align-items: center; font-size: 13px; padding: 3px 0; }
+  .bars .track { height: 8px; background: var(--surface); border-radius: 4px; overflow: hidden; }
+  .bars .fill { display: block; height: 100%; background: var(--accent); border-radius: 0 4px 4px 0; }
+  .bars .num { text-align: right; color: var(--fg2); }
+
+  .preview canvas { width: 100%; height: auto; display: block; border-radius: 6px; box-shadow: 0 20px 60px rgb(0 0 0 / .5); }
+  .note { font-size: 12px; color: var(--dim); margin-top: 12px; }
+  footer { padding: 32px var(--gut) 48px; color: var(--dim); font: 12px var(--mono); border-top: 1px solid var(--line); }
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-B7JVRP12X1"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-B7JVRP12X1');</script>
+</head>
+<body>
+<header class="site">
+  <h1><a href="../../">verytired.net</a></h1>
+  <nav><a href="../../audiovisual/">audiovisual</a> / <a href="../../music/">music</a> / <a href="../../tools/">tools</a></nav>
+</header>
+
+<div class="wrap hero">
+  <p class="kicker"><a href="../">← ご報告。</a> / Generator</p>
+  <h2>ご報告ジェネレータ</h2>
+  <p class="lead">X のご報告画像 <span class="num" id="n-all">247</span> 枚によく出てくる言い回しを組み合わせて、ご報告の画像を作ります。報告することは何でもかまいません。</p>
+</div>
+
+<div class="wrap gen">
+  <div class="form">
+    <label class="field"><span>名前</span><input id="name" value="やまだ" maxlength="24"></label>
+    <div class="field"><span>何のご報告か</span><div class="pills" id="kinds" role="group" aria-label="何のご報告か"></div></div>
+    <label class="field"><span id="x-l"></span><input id="x" maxlength="60"></label>
+    <div class="field"><span>見た目</span><div class="pills" id="looks" role="group" aria-label="見た目"></div></div>
+    <div class="acts">
+      <button id="roll">言い回しを変える</button>
+      <a class="main" id="save" download="gohoukoku.png" href="#">画像を保存</a>
+    </div>
+    <div class="score">
+      <h3>この文面の言い回し</h3>
+      <p>本物のご報告画像 <span class="num" id="n-all2">247</span> 枚のうち、それぞれの言葉が入っていた枚数です。</p>
+      <div class="bars" id="bars"></div>
+      <p style="margin-top:18px">同じ言い回しを半分以上使っていた本物の画像</p>
+      <div><span class="big" id="same">–</span> <span style="color:var(--dim)">枚</span></div>
+    </div>
+  </div>
+  <div class="preview">
+    <canvas id="cv" width="1080" height="1350" role="img" aria-label="作ったご報告の画像"></canvas>
+    <p class="note">画像の下に「ご報告ジェネレータで作成」と入ります。実在の人になりすます使い方はしないでください。</p>
+  </div>
+</div>
+
+<footer>verytired.net — <a href="https://x.com/very_tired" style="color:var(--accent);text-decoration:none">@very_tired</a></footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const pick = (arr, k) => arr[k % arr.length];
+
+// 何のご報告か：x は入力欄の中身。本題の文を返す
+const KINDS = {
+  結婚: { l: '相手', v: '一般の方', b: x => [`かねてよりお付き合いしておりました${x}と、入籍いたしました。`, `${x}と結婚いたしました。`] },
+  妊娠: { l: '出産の予定', v: '来年の春', b: x => [`新しい命を授かりました。${x}に出産を予定しております。`, `第一子を授かりましたことをご報告いたします。${x}に出産予定です。`] },
+  出産: { l: '生まれた子', v: '女の子', b: x => [`第一子となる元気な${x}が誕生いたしました。母子ともに健康です。`, `元気な${x}が生まれました。家族一同、喜びでいっぱいです。`] },
+  卒業: { l: 'グループの名前', v: '所属グループ', b: x => [`${x}を卒業することになりました。`, `${x}を卒業することを決意いたしました。`] },
+  独立: { l: '事務所の名前', v: '所属事務所', b: x => [`${x}を退所し、独立することになりました。`, `${x}との契約を終了し、新たな道を歩むことにいたしました。`] },
+  休止: { l: '理由', v: '体調を整えるため', b: x => [`${x}、しばらくの間活動を休止させていただくことになりました。`, `${x}、一定期間お休みをいただくことになりました。`] },
+  なんでも: { l: '報告すること', v: '昼にカレーを食べました', b: x => [x.replace(/[。.]?$/, '。')] },
+};
+// 型どおりの順に並べる。各段の候補から1つずつ選ぶ
+const SLOTS = [
+  () => ['いつも応援してくださっている皆様へ', '関係者の皆様、ファンの皆様へ', 'いつも温かく見守ってくださる皆様へ'],
+  () => ['私事で大変恐縮ではございますが、ご報告させていただきます。', '突然のご報告となりますが、この場をお借りしてお伝えさせていただきます。', '本日は皆様にご報告がございます。'],
+  (k, x) => KINDS[k].b(x).flatMap(s => ['この度、' + s, s]),
+  k => ['卒業', '独立', '休止'].includes(k) ? ['皆様にはご心配をおかけしてしまい、申し訳ございません。', '突然のことで驚かせてしまい、お詫び申し上げます。'] : [''],
+  () => ['これまで支えてくださった皆様に、心より感謝申し上げます。', 'いつも応援してくださる皆様のおかげで、今の私があります。本当にありがとうございます。'],
+  () => ['まだまだ未熟な私ですが、これまで以上に精進してまいります。', '新たな気持ちで、一歩ずつ歩んでまいります。'],
+  () => ['今後とも温かく見守っていただけますと幸いです。', '今後とも何卒よろしくお願い申し上げます。'],
+];
+const LOOKS = {
+  白い紙: { bg: '#fdfcf8', ink: '#1b1b1b', font: '"Shippori Mincho B1"', w: 600, title: 800, lines: false },
+  メモ: { bg: '#ffffff', ink: '#111111', font: '"Zen Kaku Gothic New"', w: 400, title: 700, lines: false, memo: true },
+  手書き: { bg: '#f6f1e4', ink: '#2a2a3a', font: '"Zen Kurenaido"', w: 400, title: 400, lines: true },
+};
+
+let D, kind = '結婚', look = '白い紙', seed = SLOTS.map(() => 0);
+const today = new Date(), DATE = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+
+const pillset = (el, keys, cur, on) => {
+  el.innerHTML = keys.map(k => `<button aria-pressed="${k === cur}">${k}</button>`).join('');
+  el.onclick = e => { const b = e.target.closest('button'); if (!b) return; el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); on(b.textContent); };
+};
+const setKind = k => { kind = k; $('x-l').textContent = KINDS[k].l; $('x').value = KINDS[k].v; draw(); };
+
+const sentences = () => {
+  const x = $('x').value.trim() || KINDS[kind].v;
+  return SLOTS.map((f, i) => pick(f(kind, x), seed[i])).filter(Boolean);
+};
+
+// 1文字ずつ詰めて折り返す。句読点と閉じかっこは行頭に来ないよう前の行に入れる
+const wrap = (ctx, text, max) => {
+  const out = []; let line = '';
+  for (const ch of text) {
+    if (ctx.measureText(line + ch).width > max && line && !/[、。」』）！？]/.test(ch)) { out.push(line); line = ch; }
+    else line += ch;
+  }
+  return line ? [...out, line] : out;
+};
+
+let drawing = 0;
+const draw = async () => {
+  const my = ++drawing, L = LOOKS[look], S = sentences(), name = $('name').value.trim() || 'わたし';
+  const all = 'ご報告' + S.join('') + DATE + name + 'verytired.net/notice ご報告ジェネレータで作成 < メモ 完了';
+  await Promise.all([document.fonts.load(`${L.w} 40px ${L.font}`, all), document.fonts.load(`${L.title} 40px ${L.font}`, 'ご報告'), document.fonts.load('400 20px "Zen Kaku Gothic New"', all)]);
+  if (my !== drawing) return;
+  const cv = $('cv'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = 110;
+  ctx.fillStyle = L.bg; ctx.fillRect(0, 0, W, H);
+  let top = 150;
+  if (L.memo) {   // メモアプリ風の上の帯
+    ctx.fillStyle = '#d9a400'; ctx.font = '400 34px "Zen Kaku Gothic New"'; ctx.textAlign = 'left'; ctx.fillText('〈 メモ', 48, 84);
+    ctx.textAlign = 'right'; ctx.fillText('完了', W - 48, 84); ctx.fillStyle = '#9a9a9a'; ctx.font = '400 26px "Zen Kaku Gothic New"';
+    ctx.textAlign = 'center'; ctx.fillText(DATE, W / 2, 150); top = 200;
+  }
+  ctx.fillStyle = L.ink; ctx.textBaseline = 'alphabetic';
+  ctx.font = `${L.title} ${L.memo ? 64 : 76}px ${L.font}`; ctx.textAlign = L.memo ? 'left' : 'center';
+  ctx.fillText('ご報告', L.memo ? pad - 40 : W / 2, top + 60);
+  // 本文が収まる大きさまで字を小さくする
+  const bodyTop = top + 160, bodyBottom = H - 300, max = W - pad * 2;
+  let size = 42, lines;
+  for (; size > 24; size -= 2) {
+    ctx.font = `${L.w} ${size}px ${L.font}`;
+    lines = S.flatMap((s, i) => [...wrap(ctx, s, max), ...(i === 0 ? [''] : [])]);
+    if (lines.length * size * 1.85 <= bodyBottom - bodyTop) break;
+  }
+  const lh = size * 1.85;
+  if (L.lines) { ctx.strokeStyle = 'rgb(60 80 140 / .18)'; ctx.lineWidth = 2; for (let y = bodyTop + lh * .35; y < H - 120; y += lh) { ctx.beginPath(); ctx.moveTo(pad - 30, y); ctx.lineTo(W - pad + 30, y); ctx.stroke(); } }
+  ctx.textAlign = 'left';
+  lines.forEach((t, i) => ctx.fillText(t, pad, bodyTop + i * lh));
+  ctx.textAlign = 'right'; ctx.font = `${L.w} ${Math.max(size, 34)}px ${L.font}`;
+  const sy = Math.min(bodyTop + lines.length * lh + 40, H - 200);
+  if (!L.memo) ctx.fillText(DATE, W - pad, sy);
+  ctx.fillText(name, W - pad, sy + Math.max(size, 34) * 1.7);
+  // 作ったことの印（外さない）
+  ctx.textAlign = 'center'; ctx.fillStyle = 'rgb(0 0 0 / .38)'; ctx.font = '400 22px "Zen Kaku Gothic New"';
+  ctx.fillText('verytired.net/notice ご報告ジェネレータで作成', W / 2, H - 44);
+  cv.toBlob(b => { if (my !== drawing) return; const a = $('save'); if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href); a.href = URL.createObjectURL(b); });
+  score(S.join(''));
+};
+
+// 使った言い回しが本物の画像に何枚あったか
+const score = text => {
+  if (!D) return;
+  const used = D.phrases.map((p, j) => j).filter(j => text.includes(D.phrases[j]));
+  const n = D.items.length;
+  $('bars').innerHTML = used.map(j => [D.phrases[j], D.phrase_counts[j]]).sort((a, b) => b[1] - a[1])
+    .map(([p, c]) => `<div><span>${p}</span><span class="track"><span class="fill" style="width:${c / n * 100}%"></span></span><span class="num">${c}枚</span></div>`).join('') || '<p>よくある言い回しは入っていません。</p>';
+  $('same').textContent = used.length ? D.items.filter(it => it.p.filter(j => used.includes(j)).length * 2 >= used.length).length : 0;
+};
+
+pillset($('kinds'), Object.keys(KINDS), kind, setKind);
+pillset($('looks'), Object.keys(LOOKS), look, k => { look = k; draw(); });
+$('roll').onclick = () => { seed = seed.map(s => s + 1 + Math.floor(Math.random() * 3)); draw(); };
+$('name').oninput = $('x').oninput = () => draw();
+setKind(kind);
+fetch('../data.json').then(r => r.json()).then(d => { D = d; $('n-all').textContent = $('n-all2').textContent = d.items.length; draw(); });
+</script>
+</body>
+</html>
