@@ -54,6 +54,9 @@
   .legend button i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
   .legend button.off { color: var(--dim); opacity: .45; }
   .legend .num { color: var(--dim); }
+  .find { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--dim); }
+  .find input { width: 13em; max-width: 46vw; background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; color: var(--fg); font: inherit; font-size: 13px; }
+  .find input:focus { outline: none; border-color: var(--fg2); }
 
   /* 舞台：タイルを絶対配置し、並びを替えると動く */
   .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 48px 0 20px; flex-wrap: wrap; }
@@ -160,6 +163,7 @@
       <button data-v="phrase" aria-pressed="false">言い回し</button>
     </div>
     <div class="legend" id="legend" role="group" aria-label="ジャンルで絞る"></div>
+    <label class="find"><input id="q" type="search" placeholder="名前・本文で探す" aria-label="名前・本文で探す"><span id="q-n" aria-live="polite"></span></label>
   </div>
 </div>
 
@@ -216,12 +220,13 @@ const VIEWS = {
   year: ['年ごとのジャンルの割合', '各年を 100% にしています（年ごとの件数は検索の上限で決まるので、比べられません）。'],
   phrase: ['文面に出てくる言い回し', '言葉を押すと、それを含む画像が光ります。'],
 };
-let D, IT, view = 'date', genreOn = null, phrase = 0, order = [];
+let D, IT, view = 'date', genreOn = null, q = '', phrase = 0, order = [];
 const tiles = [];
 
 fetch('data.json').then(r => r.json()).then(d => {
   D = d; IT = d.items;
-  IT.forEach((it, i) => { it.i = i; it.yr = +it.d.slice(0, 4); });
+  IT.forEach((it, i) => { it.i = i; it.yr = +it.d.slice(0, 4); it.s = `${it.n} @${it.h} ${it.t}`.toLowerCase(); });
+  $('q').oninput = e => { q = e.target.value.trim().toLowerCase(); paint(); };
   const gc = d.names.map((_, g) => IT.filter(it => it.g === g).length);
   const top = gc.indexOf(Math.max(...gc.slice(0, 7)));
   $('s-total').textContent = d.total; $('s-items').textContent = IT.length;
@@ -302,11 +307,12 @@ const layout = () => {
 };
 
 // ---- 色と絞り込み
-const visible = it => (genreOn === null || it.g === genreOn) && (view !== 'phrase' || it.p.includes(phrase));
+const visible = it => (genreOn === null || it.g === genreOn) && (view !== 'phrase' || it.p.includes(phrase)) && (!q || it.s.includes(q));
 const paint = () => {
   IT.forEach(it => { const t = tiles[it.i]; t.classList.toggle('dim', !visible(it)); t.style.setProperty('--tint', view === 'year' ? 0.55 : 0); });
   document.querySelectorAll('#legend button').forEach(b => b.classList.toggle('off', genreOn !== null && +b.dataset.g !== genreOn));
   order = IT.filter(visible).map(it => it.i);   // 前・次でめくる順
+  $('q-n').textContent = q ? `${order.length}件` : '';
 };
 
 const tip = (it, e) => {
