@@ -94,8 +94,12 @@ def main():
         ocr_path.write_text(json.dumps(ocr, ensure_ascii=False))
     print(f"文字を読んだ画像 {len(todo)}枚（全部で {len(ocr)}枚）")
 
+    # 見て「違う」とした投稿（1行に1つ URL。# から後ろはメモ）。判定の決まりを変えても戻ってこない
+    ng = {l.split("#")[0].strip() for l in (HERE / "exclude.txt").read_text().splitlines()} - {""}
     items = []
     for p in posts.values():
+        if p["url"] in ng:
+            continue
         files = [(i, *img_file(u)) for i, u in enumerate(p["imgs"])]
         texts = [ocr.get(f"{mid}.{ext}", {}) for _, mid, ext in files]
         ok = [j for j in range(len(files)) if is_letter(texts[j])]
@@ -106,7 +110,8 @@ def main():
         whole = p["text"] + "\n" + "\n".join(t.get("text", "") for t in texts)
         name, handle = (p["user"].split(" | ") + ["", ""])[:2]
         items.append(dict(
-            u=p["url"], d=p["date"][:10], n=name, h=handle.lstrip("@"), t=p["text"].strip(),
+            # q は見つけた検索語
+            u=p["url"], q=p.get("q", "ご報告"), d=p["date"][:10], n=name, h=handle.lstrip("@"), t=p["text"].strip(),
             img=[f"https://pbs.twimg.com/media/{mid}?format={ext}" for _, mid, ext in files], b=best,
             w=o.get("w"), hh=o.get("h"), g=genre(whole),
             p=[j for j, s in enumerate(PHRASES) if s in whole],
