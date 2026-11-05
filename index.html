@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ご報告の画像を読む — verytired.net</title>
+<link rel="icon" href="/favicon.svg">
+<meta name="description" content="X に投稿された「ご報告」の画像を集め、ジャンルと言葉で並べ替えたデータビジュアライゼーション。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #121214; --surface: #1a1a19; --line: #2c2c2a; --fg: #f0efec; --fg2: #c3c2b7; --dim: #8a8a84; --accent: #5cc8ff;
+    --g0: #3987e5; --g1: #d95926; --g2: #199e70; --g3: #c98500; --g4: #d55181; --g5: #008300; --g6: #9085e9; --g7: #6f6e69;
+    --serif: "Shippori Mincho B1", serif; --sans: "Zen Kaku Gothic New", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+    --gut: 16px;
+  }
+  @media (min-width: 760px) { :root { --gut: 48px; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.8 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 var(--gut); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+  /* サイトのヘッダー */
+  .site { display: flex; justify-content: space-between; gap: 16px; padding: 12px var(--gut); font: 13px/1.5 var(--mono); }
+  .site a { text-decoration: none; color: var(--dim); }
+  .site a:hover { color: var(--fg); }
+  .site h1 { margin: 0; font: inherit; } .site h1 a { color: var(--accent); }
+
+  /* 表紙 */
+  .hero { padding-top: 72px; padding-bottom: 40px; border-bottom: 1px solid var(--line); }
+  .kicker { font: 12px/1 var(--mono); letter-spacing: .14em; color: var(--dim); text-transform: uppercase; margin: 0 0 24px; }
+  .hero h2 { font: 800 clamp(64px, 14vw, 168px)/0.95 var(--serif); margin: 0; letter-spacing: -.02em; }
+  .hero h2 span { color: var(--dim); font-weight: 600; }
+  .lead { font-size: clamp(16px, 2vw, 19px); color: var(--fg2); max-width: 34em; margin: 28px 0 0; }
+  .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-top: 56px; border-top: 1px solid var(--line); }
+  .stats div { padding: 16px 16px 0 0; }
+  .stats div + div { padding-left: 16px; border-left: 1px solid var(--line); }
+  .stats b { display: block; font: 600 clamp(32px, 6vw, 56px)/1.1 var(--mono); letter-spacing: -.03em; }
+  .stats span { font-size: 13px; color: var(--dim); }
+
+  /* 操作の帯（スクロールしても上に残す） */
+  .bar { position: sticky; top: 0; z-index: 5; background: rgb(18 18 20 / .86); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .bar .wrap { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px; padding-top: 12px; padding-bottom: 12px; }
+  .views { display: flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; overflow-x: auto; max-width: 100%; }
+  .views button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--dim); white-space: nowrap; font-size: 13px; }
+  .views button[aria-pressed="true"] { background: var(--fg); color: var(--bg); }
+  .views button:hover:not([aria-pressed="true"]) { color: var(--fg); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+  .legend button { border: 0; background: none; padding: 2px 0; cursor: pointer; color: var(--fg2); display: inline-flex; align-items: center; gap: 6px; }
+  .legend button i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .legend button.off { color: var(--dim); opacity: .45; }
+  .legend .num { color: var(--dim); }
+
+  /* 舞台：タイルを絶対配置し、並びを替えると動く */
+  .chart-head { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; margin: 48px 0 20px; flex-wrap: wrap; }
+  .chart-head h3 { font: 600 clamp(24px, 3.4vw, 34px)/1.3 var(--serif); margin: 0; }
+  .chart-head p { margin: 0; color: var(--dim); font-size: 13px; max-width: 36em; }
+  .stage { position: relative; transition: height .7s cubic-bezier(.65, 0, .35, 1); }
+  .tile { position: absolute; left: 0; top: 0; padding: 0; border: 0; background: #262624; cursor: pointer; overflow: hidden; border-radius: 2px;
+          transition: transform .8s cubic-bezier(.65, 0, .35, 1), width .8s cubic-bezier(.65, 0, .35, 1), height .8s cubic-bezier(.65, 0, .35, 1), opacity .3s, filter .3s; }
+  .tile img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; }
+  .tile::after { content: ""; position: absolute; inset: 0; background: var(--c); opacity: var(--tint, 0); mix-blend-mode: multiply; transition: opacity .5s; pointer-events: none; }
+  .tile::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--c); z-index: 1; }
+  .tile.dim { opacity: .14; filter: grayscale(1); }
+  .tile:hover, .tile:focus-visible { outline: 2px solid var(--fg); outline-offset: 1px; z-index: 2; }
+  .tile.gone { background: repeating-linear-gradient(45deg, #222 0 4px, #1a1a1a 4px 8px); }
+  .labels { position: absolute; inset: 0; pointer-events: none; }
+  .labels > * { position: absolute; transition: opacity .4s; }
+  .glabel { display: flex; align-items: baseline; gap: 10px; font-size: 14px; font-weight: 700; }
+  .glabel i { width: 10px; height: 10px; border-radius: 2px; align-self: center; }
+  .glabel .num { color: var(--dim); font-weight: 400; font-size: 13px; }
+  .ylabel { font: 12px/1 var(--mono); color: var(--dim); text-align: center; }
+  .ymark { font: 11px/1 var(--mono); color: var(--dim); }
+  .phrases { pointer-events: auto; display: grid; gap: 2px; width: 100%; }
+  .phrases button { display: grid; grid-template-columns: minmax(7em, 11em) 1fr 3em; align-items: center; gap: 12px; border: 0; background: none; padding: 5px 0; cursor: pointer; text-align: left; color: var(--fg2); }
+  .phrases button .track { height: 14px; position: relative; }
+  .phrases button .fill { position: absolute; inset: 0 auto 0 0; background: var(--fg2); border-radius: 0 4px 4px 0; transition: width .8s cubic-bezier(.65, 0, .35, 1); }
+  .phrases button[aria-pressed="true"] { color: var(--fg); font-weight: 700; }
+  .phrases button[aria-pressed="true"] .fill { background: var(--accent); }
+  .phrases button:hover .fill { background: var(--fg); }
+  .phrases .num { color: var(--dim); text-align: right; }
+
+  /* ホバーの札 */
+  .tip { position: fixed; z-index: 20; pointer-events: none; background: var(--fg); color: var(--bg); padding: 6px 10px; border-radius: 4px; font-size: 12px; line-height: 1.5; max-width: 260px; opacity: 0; transition: opacity .12s; }
+  .tip b { display: block; }
+
+  /* 内訳と注記 */
+  section.more { display: grid; grid-template-columns: minmax(0, 1fr); gap: 48px; margin: 96px 0 0; padding-top: 40px; border-top: 1px solid var(--line); }
+  @media (min-width: 900px) { section.more { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+  section.more h4 { font: 600 22px/1.4 var(--serif); margin: 0 0 6px; }
+  section.more p, section.more li { color: var(--fg2); font-size: 14px; }
+  section.more ul { padding-left: 1.1em; margin: 0; }
+  .words { display: grid; gap: 6px; margin-top: 16px; }
+  .words div { display: grid; grid-template-columns: 4em 1fr 2.5em; gap: 12px; align-items: center; font-size: 14px; }
+  .words .track { height: 12px; } .words .fill { height: 100%; background: var(--g3); border-radius: 0 4px 4px 0; }
+  .words .num { color: var(--dim); text-align: right; }
+  details { margin-top: 64px; border-top: 1px solid var(--line); padding-top: 24px; }
+  summary { cursor: pointer; font: 600 18px/1.4 var(--serif); }
+  .tbl { overflow-x: auto; margin-top: 16px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 12px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--dim); font-weight: 400; }
+  td a { color: var(--accent); text-decoration: none; }
+  footer { padding: 80px var(--gut) 40px; color: var(--dim); font: 12px/1.6 var(--mono); }
+
+  /* 1件を大きく見る */
+  dialog { border: 0; padding: 0; background: var(--surface); color: var(--fg); width: min(1040px, calc(100vw - 2 * var(--gut))); max-height: calc(100svh - 32px); border-radius: 6px; overflow: hidden; }
+  dialog::backdrop { background: rgb(0 0 0 / .78); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+  .dlg { display: grid; grid-template-columns: minmax(0, 1fr); max-height: calc(100svh - 32px); }
+  @media (min-width: 820px) { .dlg { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
+  .shot { background: #0c0c0c; display: grid; place-items: center; overflow: auto; min-height: 240px; max-height: calc(100svh - 32px); }
+  .shot img { max-width: 100%; max-height: calc(100svh - 32px); display: block; }
+  .meta { padding: 28px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
+  .meta .g { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg2); }
+  .meta .g i { width: 10px; height: 10px; border-radius: 2px; }
+  .meta h5 { font: 600 26px/1.3 var(--serif); margin: 0; }
+  .meta .who a { color: var(--dim); text-decoration: none; font: 13px var(--mono); }
+  .meta blockquote { margin: 0; padding-left: 14px; border-left: 2px solid var(--line); color: var(--fg2); white-space: pre-wrap; font-size: 14px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chips span { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--fg2); }
+  .thumbs { display: flex; gap: 6px; } .thumbs button { width: 52px; height: 52px; padding: 0; border: 1px solid var(--line); background: none; cursor: pointer; overflow: hidden; border-radius: 2px; }
+  .thumbs button[aria-pressed="true"] { border-color: var(--fg); } .thumbs img { width: 100%; height: 100%; object-fit: cover; }
+  .open { margin-top: auto; display: inline-flex; justify-content: center; padding: 12px 16px; background: var(--fg); color: var(--bg); text-decoration: none; border-radius: 999px; font-weight: 700; font-size: 14px; }
+  .open:hover { background: var(--accent); }
+  .nav { display: flex; justify-content: space-between; gap: 8px; }
+  .nav button { border: 1px solid var(--line); background: none; border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: 13px; color: var(--fg2); }
+  .nav button:hover { color: var(--fg); border-color: var(--fg2); }
+  .close { position: absolute; top: 10px; right: 10px; z-index: 2; width: 36px; height: 36px; border-radius: 50%; border: 0; background: rgb(0 0 0 / .6); cursor: pointer; font-size: 18px; }
+  @media (prefers-reduced-motion: reduce) { .tile, .stage, .fill { transition: none !important; } }
+</style>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-B7JVRP12X1"></script>
+<script>window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-B7JVRP12X1');</script>
+</head>
+<body>
+<header class="site">
+  <h1><a href="../">verytired.net</a></h1>
+  <nav><a href="../audiovisual/">audiovisual</a> / <a href="../music/">music</a> / <a href="../tools/">tools</a></nav>
+</header>
+
+<div class="wrap hero">
+  <p class="kicker">Data / Notices on X, 2016–<span id="y1">2026</span></p>
+  <h2>ご報告<span>。</span></h2>
+  <p class="lead">X に投稿された「ご報告」の画像を集めて、何を報告しているか、どんな言葉で書かれているかで並べ替えました。タイルを押すと、その画像と元の投稿が開きます。</p>
+  <div class="stats">
+    <div><b class="num" id="s-total">–</b><span>集めた投稿</span></div>
+    <div><b class="num" id="s-items">–</b><span>文面の画像</span></div>
+    <div><b class="num" id="s-top">–</b><span id="s-top-l">いちばん多い</span></div>
+  </div>
+</div>
+
+<div class="bar">
+  <div class="wrap">
+    <div class="views" role="group" aria-label="並べ方">
+      <button data-v="date" aria-pressed="true">日付順</button>
+      <button data-v="genre" aria-pressed="false">ジャンル</button>
+      <button data-v="year" aria-pressed="false">年ごとの割合</button>
+      <button data-v="phrase" aria-pressed="false">言い回し</button>
+    </div>
+    <div class="legend" id="legend" role="group" aria-label="ジャンルで絞る"></div>
+  </div>
+</div>
+
+<main class="wrap">
+  <div class="chart-head"><h3 id="ch-t"></h3><p id="ch-p"></p></div>
+  <div class="stage" id="stage"><div class="labels" id="labels"></div></div>
+
+  <section class="more">
+    <div>
+      <h4>「脱退・退所・引退」の内訳</h4>
+      <p>1つずつは少ないので、図では1つにまとめています。文面に出てくる言葉ごとの件数（1件に複数入ることがあります）。</p>
+      <div class="words" id="words"></div>
+    </div>
+    <div>
+      <h4>集め方と読み方</h4>
+      <ul>
+        <li>X の検索「ご報告 min_faves:500」の「話題」を、1年ずつスクロールして画像つきの投稿を拾いました（<span id="m-upd"></span> 時点）。</li>
+        <li>画像の文字を読み取り、4行以上あって「報告・皆様・応援・私事・この度」などを含む画像だけを残しています。</li>
+        <li>ジャンルは本文と画像の文字のキーワードで機械的に分けています。外れているものもあります。</li>
+        <li>検索は1年あたり35〜50件ほどで止まるため、年ごとの件数は比べられません。年の図は各年を100%にした割合です。いいねの多い投稿に偏っています。</li>
+        <li>画像はこのサイトに置かず、X から直接読み込んでいます。元の投稿が消されると、ここでも表示されなくなります。</li>
+      </ul>
+    </div>
+  </section>
+
+  <details>
+    <summary>一覧表で見る</summary>
+    <div class="tbl"><table><thead><tr><th>日付</th><th>ジャンル</th><th>投稿者</th><th>本文</th><th>元の投稿</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </details>
+</main>
+<footer>verytired.net — <a href="https://x.com/very_tired" style="color:var(--accent);text-decoration:none">@very_tired</a></footer>
+
+<div class="tip" id="tip"></div>
+<dialog id="dlg" aria-label="ご報告の画像">
+  <button class="close" id="close" aria-label="閉じる">×</button>
+  <div class="dlg">
+    <div class="shot"><img id="d-img" alt=""></div>
+    <div class="meta">
+      <span class="g"><i id="d-gc"></i><span id="d-g"></span><span class="num" id="d-d"></span></span>
+      <div><h5 id="d-n"></h5><div class="who"><a id="d-h" target="_blank" rel="noopener"></a></div></div>
+      <blockquote id="d-t"></blockquote>
+      <div class="thumbs" id="d-th"></div>
+      <div class="chips" id="d-p"></div>
+      <a class="open" id="d-u" target="_blank" rel="noopener">元の投稿を X で開く ↗</a>
+      <div class="nav"><button id="prev">← 前</button><span class="num" id="d-i" style="color:var(--dim);font-size:12px;align-self:center"></span><button id="next">次 →</button></div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+const $ = id => document.getElementById(id);
+const TWIMG = (u, size) => `${u}&name=${size}`;
+const VIEWS = {
+  date: ['日付順', '古いものから順に。左上が 2016 年。'],
+  genre: ['ジャンル別の件数', '1枚が1件。何を報告しているかで分けています。'],
+  year: ['年ごとのジャンルの割合', '各年を 100% にしています（年ごとの件数は検索の上限で決まるので、比べられません）。'],
+  phrase: ['文面に出てくる言い回し', '言葉を押すと、それを含む画像が光ります。'],
+};
+let D, IT, view = 'date', genreOn = null, phrase = 0, order = [];
+const tiles = [];
+
+fetch('data.json').then(r => r.json()).then(d => {
+  D = d; IT = d.items;
+  IT.forEach((it, i) => { it.i = i; it.yr = +it.d.slice(0, 4); });
+  const gc = d.names.map((_, g) => IT.filter(it => it.g === g).length);
+  const top = gc.indexOf(Math.max(...gc.slice(0, 7)));
+  $('s-total').textContent = d.total; $('s-items').textContent = IT.length;
+  $('s-top').textContent = gc[top]; $('s-top-l').textContent = `いちばん多い「${d.names[top]}」`;
+  $('y1').textContent = Math.max(...IT.map(it => it.yr)); $('m-upd').textContent = d.updated.replaceAll('-', '.');
+  // 凡例＝絞り込み（押すとそのジャンルだけ。もう一度押すと全部）
+  $('legend').innerHTML = d.names.map((n, g) => `<button data-g="${g}"><i style="background:var(--g${g})"></i>${n}<span class="num">${gc[g]}</span></button>`).join('');
+  $('legend').onclick = e => { const b = e.target.closest('button'); if (!b) return; genreOn = genreOn === +b.dataset.g ? null : +b.dataset.g; paint(); };
+  // 内訳
+  const wmax = Math.max(...d.word_counts);
+  $('words').innerHTML = d.words.map((w, j) => [w, d.word_counts[j]]).sort((a, b) => b[1] - a[1]).map(([w, n]) => `<div><span>${w}</span><span class="track"><span class="fill" style="display:block;width:${n / wmax * 100}%"></span></span><span class="num">${n}</span></div>`).join('');
+  // 表
+  const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  $('rows').innerHTML = IT.map(it => `<tr><td class="num">${it.d}</td><td>${d.names[it.g]}</td><td>${esc(it.n)}</td><td>${esc(it.t.slice(0, 30))}</td><td><a href="${it.u}" target="_blank" rel="noopener">開く ↗</a></td></tr>`).join('');
+  // タイル
+  const st = $('stage');
+  for (const it of IT) {
+    const b = document.createElement('button');
+    b.className = 'tile'; b.style.setProperty('--c', `var(--g${it.g})`);
+    b.setAttribute('aria-label', `${it.d} ${it.n} ${d.names[it.g]}`);
+    const img = new Image(); img.loading = 'lazy'; img.decoding = 'async'; img.alt = ''; img.src = TWIMG(it.img[it.b], 'thumb');
+    img.onerror = () => { b.classList.add('gone'); img.remove(); };   // 消された投稿
+    b.append(img); b.onclick = () => openItem(it.i);
+    b.onpointerenter = e => tip(it, e); b.onpointermove = e => tip(it, e); b.onpointerleave = () => $('tip').style.opacity = 0;
+    st.append(b); tiles.push(b);
+  }
+  document.querySelectorAll('.views button').forEach(b => b.onclick = () => { view = b.dataset.v; document.querySelectorAll('.views button').forEach(x => x.setAttribute('aria-pressed', x === b)); layout(); });
+  layout();
+  addEventListener('resize', () => { clearTimeout(layout.t); layout.t = setTimeout(layout, 150); });
+});
+
+// ---- 並べ方ごとに、タイルの位置と大きさを決める
+const place = (i, x, y, w, h) => { const s = tiles[i].style; s.transform = `translate(${x}px,${y}px)`; s.width = w + 'px'; s.height = h + 'px'; s.transitionDelay = `${Math.min(i, 240) * 1.5}ms`; };
+const layout = () => {
+  const W = $('stage').clientWidth, s = W > 900 ? 44 : W > 560 ? 36 : 28, gap = 4, L = [];
+  let H = 0;
+  $('ch-t').textContent = VIEWS[view][0]; $('ch-p').textContent = VIEWS[view][1];
+  const grid = (list, y0) => {   // 左上から詰める格子
+    const cols = Math.max(1, Math.floor((W + gap) / (s + gap)));
+    list.forEach((it, j) => place(it.i, (j % cols) * (s + gap), y0 + Math.floor(j / cols) * (s + gap), s, s));
+    return y0 + Math.ceil(list.length / cols) * (s + gap);
+  };
+  if (view === 'date') {
+    const cols = Math.max(1, Math.floor((W + gap) / (s + gap)));
+    H = grid(IT, 0);
+    let prev = 0;   // 年が替わるタイルの上に小さく年を出す
+    IT.forEach((it, j) => { if (it.yr !== prev) { prev = it.yr; L.push(`<span class="ymark" style="left:${(j % cols) * (s + gap)}px;top:${Math.floor(j / cols) * (s + gap) - 2}px;transform:translateY(-100%)">${it.yr}</span>`); } });
+    // 年の札が上の行に重ならないよう、行の間を空ける代わりに少し下げる
+  }
+  if (view === 'genre') {
+    let y = 0;
+    D.names.forEach((n, g) => {
+      const list = IT.filter(it => it.g === g);
+      L.push(`<div class="glabel" style="left:0;top:${y}px"><i style="background:var(--g${g})"></i>${n}<span class="num">${list.length}</span></div>`);
+      y = grid(list, y + 32) + 28;
+    });
+    H = y;
+  }
+  if (view === 'year') {
+    const years = [...new Set(IT.map(it => it.yr))].sort(), cw = W / years.length, ch = Math.min(620, Math.max(360, innerHeight * 0.62));
+    years.forEach((yr, k) => {
+      const list = IT.filter(it => it.yr === yr).sort((a, b) => a.g - b.g || a.i - b.i), rows = Math.ceil(list.length / 2), th = ch / rows, tw = (cw - 10) / 2;
+      list.forEach((it, j) => place(it.i, k * cw + 4 + (j % 2) * (tw + 2), ch - (Math.floor(j / 2) + 1) * th, tw, Math.max(1, th - 2)));
+      L.push(`<span class="ylabel" style="left:${k * cw}px;width:${cw}px;top:${ch + 10}px">${W < 560 ? "'" + String(yr).slice(2) : yr}</span>`);
+    });
+    H = ch + 36;
+  }
+  if (view === 'phrase') {
+    const max = Math.max(...D.phrase_counts), rows = D.phrases.map((p, j) => [p, D.phrase_counts[j], j]).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    L.push(`<div class="phrases" style="left:0;top:0" role="group" aria-label="言い回し">${rows.map(([p, n, j]) => `<button data-p="${j}" aria-pressed="${j === phrase}"><span>「${p}」</span><span class="track"><span class="fill" style="width:${n / max * 100}%"></span></span><span class="num">${n}</span></button>`).join('')}</div>`);
+    H = grid(IT, rows.length * 34 + 32);
+  }
+  $('labels').innerHTML = L.join('');
+  $('stage').style.height = H + 'px';
+  const ph = $('labels').querySelector('.phrases');
+  if (ph) ph.onclick = e => { const b = e.target.closest('button'); if (!b) return; phrase = +b.dataset.p; ph.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); paint(); };
+  paint();
+};
+
+// ---- 色と絞り込み
+const visible = it => (genreOn === null || it.g === genreOn) && (view !== 'phrase' || it.p.includes(phrase));
+const paint = () => {
+  IT.forEach(it => { const t = tiles[it.i]; t.classList.toggle('dim', !visible(it)); t.style.setProperty('--tint', view === 'year' ? 0.55 : 0); });
+  document.querySelectorAll('#legend button').forEach(b => b.classList.toggle('off', genreOn !== null && +b.dataset.g !== genreOn));
+  order = IT.filter(visible).map(it => it.i);   // 前・次でめくる順
+};
+
+const tip = (it, e) => {
+  const t = $('tip'); t.innerHTML = `<b>${it.n.replace(/</g, '&lt;')}</b>${it.d.replaceAll('-', '.')} · ${D.names[it.g]}`;
+  t.style.opacity = 1; t.style.left = Math.min(innerWidth - 270, e.clientX + 14) + 'px'; t.style.top = (e.clientY + 16) + 'px';
+};
+
+// ---- 1件を開く
+let cur = 0;
+const openItem = i => {
+  cur = i; const it = IT[i];
+  $('tip').style.opacity = 0;
+  const show = k => { $('d-img').src = TWIMG(it.img[k], 'medium'); $('d-th').querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-pressed', j === k)); };
+  $('d-th').innerHTML = it.img.length > 1 ? it.img.map((u, k) => `<button aria-label="${k + 1}枚目"><img src="${TWIMG(u, 'thumb')}" alt=""></button>`).join('') : '';
+  $('d-th').querySelectorAll('button').forEach((b, k) => b.onclick = () => show(k));
+  show(it.b);
+  $('d-img').alt = `${it.n} のご報告の画像`;
+  $('d-gc').style.background = `var(--g${it.g})`; $('d-g').textContent = D.names[it.g]; $('d-d').textContent = it.d.replaceAll('-', '.');
+  $('d-n').textContent = it.n; $('d-h').textContent = '@' + it.h; $('d-h').href = `https://x.com/${it.h}`;
+  $('d-t').textContent = it.t || '（本文なし）';
+  $('d-p').innerHTML = it.p.map(j => `<span>「${D.phrases[j]}」</span>`).join('');
+  $('d-u').href = it.u;
+  const k = order.indexOf(i); $('d-i').textContent = k < 0 ? '' : `${k + 1} / ${order.length}`;
+  if (!$('dlg').open) $('dlg').showModal();
+};
+const step = d => { const k = order.indexOf(cur); if (order.length) openItem(order[(Math.max(0, k) + d + order.length) % order.length]); };
+$('prev').onclick = () => step(-1); $('next').onclick = () => step(1); $('close').onclick = () => $('dlg').close();
+$('dlg').onclick = e => { if (e.target === $('dlg')) $('dlg').close(); };   // 外側を押すと閉じる
+addEventListener('keydown', e => { if (!$('dlg').open) return; if (e.key === 'ArrowLeft') step(-1); if (e.key === 'ArrowRight') step(1); });
+</script>
+</body>
+</html>
