@@ -7,8 +7,9 @@
 2. 本文と画像の文字のキーワードでジャンルを当てる（上から順に、最初に当たったもの）
 3. 文面の画像（4行以上で、ご報告らしい言葉を含む）がある投稿だけを data.json に書く。
    画像は X の URL をそのまま使う（本人が消せばページからも消える）
+4. X の oEmbed が 404 / 403 を返す投稿（消された・鍵がかかった）は書かない。--no-check で飛ばせる
 """
-import collections, datetime, json, re, subprocess
+import collections, datetime, json, re, subprocess, sys, time, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -38,6 +39,17 @@ LETTER = r"報告|皆様|皆さま|皆さん|応援|私事|お知らせ|ご迷�
 def img_file(u):
     m = re.search(r"media/([\w-]+)(?:\?format=|\.)(\w+)", u)
     return m.group(1), m.group(2)
+
+
+def gone(u):
+    """消された・非公開の投稿なら True。通信の失敗では消さない"""
+    try:
+        urllib.request.urlopen("https://publish.twitter.com/oembed?omit_script=1&url=" + urllib.parse.quote(u), timeout=15)
+    except urllib.error.HTTPError as e:
+        return e.code in (403, 404)
+    except OSError:
+        pass
+    return False
 
 
 def genre(t):
@@ -72,6 +84,14 @@ def main():
             p=[j for j, s in enumerate(PHRASES) if s in whole],
             k=[j for j, s in enumerate(WORDS) if s in whole],
         ))
+    if "--no-check" not in sys.argv:
+        dead = []
+        for it in items:
+            if gone(it["u"]):
+                dead.append(it["u"])
+            time.sleep(0.3)
+        items = [it for it in items if it["u"] not in dead]
+        print(f"消された・非公開の投稿 {len(dead)}件を外した", *dead, sep="\n  ")
     items.sort(key=lambda it: it["d"])
     pc = collections.Counter(j for it in items for j in it["p"])
     kc = collections.Counter(j for it in items for j in it["k"])
