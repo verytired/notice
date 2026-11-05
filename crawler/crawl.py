@@ -2,13 +2,13 @@
 # requires-python = ">=3.11"
 # dependencies = ["playwright"]
 # ///
-"""X の検索から「ご報告」の画像つき投稿を拾い、notice/raw/posts.json に足していく（重複は URL で除く）。
+"""X の検索から「ご報告」の画像つき投稿を拾い、raw/posts.json に足していく（重複は URL で除く）。
 
-  uv run notice/crawler/crawl.py                 # 2016年から今年まで、1年ずつ
-  uv run notice/crawler/crawl.py --from 2026     # 今年だけ取り直す
-  uv run notice/crawler/crawl.py --query "私事ではございますが"
+  uv run crawler/crawl.py                 # 2016年から今年まで、1年ずつ
+  uv run crawler/crawl.py --from 2026     # 今年だけ取り直す
+  uv run crawler/crawl.py --query "私事ではございますが"
 
-X は検索にログインが要る。手元の Chrome を専用のプロファイル（notice/raw/profile、git に入れない）で開くので、
+X は検索にログインが要る。手元の Chrome を専用のプロファイル（raw/profile、git に入れない）で開くので、
 初回だけ開いた窓で自分でログインしてから Enter を押す。ヘッドレスだと弾かれるので窓は出したまま。
 filter:images を since/until と一緒に書くと結果が0件になるので、画像の有無はページの側で見る。
 1年あたり35〜50件ほどで打ち切られる（「話題」タブの上限）ので、年ごとの件数は比べられない。

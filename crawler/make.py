@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""raw/（posts.json と画像）から、ページが読む notice/data.json を作る。crawl.py のあとに。
+"""raw/（posts.json と画像）から、ページが読む data.json を作る。crawl.py のあとに。
 
-  python3 notice/crawler/make.py
+  python3 crawler/make.py
 
 1. まだ読んでいない画像の文字を ocr.swift（macOS の Vision）で読み、raw/ocr.json に足す
 2. 本文と画像の文字のキーワードでジャンルを当てる（上から順に、最初に当たったもの）
