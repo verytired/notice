@@ -112,18 +112,17 @@
   dialog::backdrop { background: rgb(0 0 0 / .78); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
   .dlg { display: grid; grid-template-columns: minmax(0, 1fr); max-height: calc(100svh - 32px); }
   @media (min-width: 820px) { .dlg { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); } }
-  .shot { background: #0c0c0c; display: grid; place-items: center; overflow: auto; min-height: 240px; max-height: calc(100svh - 32px); }
-  .shot img { max-width: 100%; max-height: calc(100svh - 32px); display: block; }
+  .shot { background: #0c0c0c; overflow: auto; min-height: 320px; max-height: calc(100svh - 32px); padding: 24px 16px; }
+  .shot .twitter-tweet { margin: 0 auto !important; }
+  .shot p { color: var(--dim); text-align: center; font-size: 14px; margin: 96px 0; }
+  .shot p a { color: var(--accent); }
   .meta { padding: 28px; overflow: auto; display: flex; flex-direction: column; gap: 14px; }
   .meta .g { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg2); }
   .meta .g i { width: 10px; height: 10px; border-radius: 2px; }
   .meta h5 { font: 600 26px/1.3 var(--serif); margin: 0; }
   .meta .who a { color: var(--dim); text-decoration: none; font: 13px var(--mono); }
-  .meta blockquote { margin: 0; padding-left: 14px; border-left: 2px solid var(--line); color: var(--fg2); white-space: pre-wrap; font-size: 14px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chips span { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; color: var(--fg2); }
-  .thumbs { display: flex; gap: 6px; } .thumbs button { width: 52px; height: 52px; padding: 0; border: 1px solid var(--line); background: none; cursor: pointer; overflow: hidden; border-radius: 2px; }
-  .thumbs button[aria-pressed="true"] { border-color: var(--fg); } .thumbs img { width: 100%; height: 100%; object-fit: cover; }
   .open { margin-top: auto; display: inline-flex; justify-content: center; padding: 12px 16px; background: var(--fg); color: var(--bg); text-decoration: none; border-radius: 999px; font-weight: 700; font-size: 14px; }
   .open:hover { background: var(--accent); }
   .nav { display: flex; justify-content: space-between; gap: 8px; }
@@ -197,12 +196,10 @@
 <dialog id="dlg" aria-label="ご報告の画像">
   <button class="close" id="close" aria-label="閉じる">×</button>
   <div class="dlg">
-    <div class="shot"><img id="d-img" alt=""></div>
+    <div class="shot" id="d-embed" aria-live="polite"></div>
     <div class="meta">
       <span class="g"><i id="d-gc"></i><span id="d-g"></span><span class="num" id="d-d"></span></span>
       <div><h5 id="d-n"></h5><div class="who"><a id="d-h" target="_blank" rel="noopener"></a></div></div>
-      <blockquote id="d-t"></blockquote>
-      <div class="thumbs" id="d-th"></div>
       <div class="chips" id="d-p"></div>
       <a class="open" id="d-u" target="_blank" rel="noopener">元の投稿を X で開く ↗</a>
       <div class="nav"><button id="prev">← 前</button><span class="num" id="d-i" style="color:var(--dim);font-size:12px;align-self:center"></span><button id="next">次 →</button></div>
@@ -317,19 +314,30 @@ const tip = (it, e) => {
   t.style.opacity = 1; t.style.left = Math.min(innerWidth - 270, e.clientX + 14) + 'px'; t.style.top = (e.clientY + 16) + 'px';
 };
 
-// ---- 1件を開く
-let cur = 0;
+// ---- 1件を開く。画像と本文は X 公式の埋め込みで出す（このサイトには置かない）
+const widgets = () => window.twttr?.widgets ? Promise.resolve(twttr.widgets) : (widgets.p ||= new Promise((res, rej) => {
+  const s = document.createElement('script'); s.src = 'https://platform.twitter.com/widgets.js'; s.async = true;
+  s.onload = () => twttr.ready(t => res(t.widgets)); s.onerror = rej; document.head.append(s);
+}));
+let cur = 0, seq = 0;
+const embed = it => {
+  const el = $('d-embed'), my = ++seq, id = it.u.split('/status/')[1];
+  const fail = msg => { if (my === seq) el.innerHTML = `<p>${msg}<br><a href="${it.u}" target="_blank" rel="noopener">X で開く ↗</a></p>`; };
+  el.innerHTML = '<p>読み込み中…</p>';
+  widgets().then(w => w.createTweet(id, el, { theme: 'dark', lang: 'ja', dnt: true, conversation: 'none', align: 'center' }))
+    .then(node => {
+      if (my !== seq) { node?.remove(); return; }   // 速くめくったとき、前の埋め込みが遅れて届いたら捨てる
+      if (!node) return fail('この投稿は表示できません（削除されたか、非公開になっています）。');
+      el.querySelector('p')?.remove();
+    })
+    .catch(() => fail('X の埋め込みを読み込めませんでした。'));
+};
 const openItem = i => {
   cur = i; const it = IT[i];
   $('tip').style.opacity = 0;
-  const show = k => { $('d-img').src = TWIMG(it.img[k], 'medium'); $('d-th').querySelectorAll('button').forEach((b, j) => b.setAttribute('aria-pressed', j === k)); };
-  $('d-th').innerHTML = it.img.length > 1 ? it.img.map((u, k) => `<button aria-label="${k + 1}枚目"><img src="${TWIMG(u, 'thumb')}" alt=""></button>`).join('') : '';
-  $('d-th').querySelectorAll('button').forEach((b, k) => b.onclick = () => show(k));
-  show(it.b);
-  $('d-img').alt = `${it.n} のご報告の画像`;
+  embed(it);
   $('d-gc').style.background = `var(--g${it.g})`; $('d-g').textContent = D.names[it.g]; $('d-d').textContent = it.d.replaceAll('-', '.');
   $('d-n').textContent = it.n; $('d-h').textContent = '@' + it.h; $('d-h').href = `https://x.com/${it.h}`;
-  $('d-t').textContent = it.t || '（本文なし）';
   $('d-p').innerHTML = it.p.map(j => `<span>「${D.phrases[j]}」</span>`).join('');
   $('d-u').href = it.u;
   const k = order.indexOf(i); $('d-i').textContent = k < 0 ? '' : `${k + 1} / ${order.length}`;
