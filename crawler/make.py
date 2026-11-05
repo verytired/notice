@@ -61,7 +61,7 @@ def main():
     posts = json.loads((RAW / "posts.json").read_text())
     ocr_path = RAW / "ocr.json"
     ocr = json.loads(ocr_path.read_text()) if ocr_path.exists() else {}
-    todo = [str(f) for f in sorted((RAW / "img").iterdir()) if f.name not in ocr]
+    todo = [str(f) for f in sorted((RAW / "img").iterdir()) if "area" not in ocr.get(f.name, {})]   # area がない古い結果も読み直す
     for i in range(0, len(todo), 100):   # 100枚ずつ読んで足す
         ocr.update(json.loads(subprocess.run(["swift", HERE / "ocr.swift", *todo[i:i + 100]], capture_output=True, check=True).stdout))
         ocr_path.write_text(json.dumps(ocr, ensure_ascii=False))

@@ -8,7 +8,7 @@
 <meta name="description" content="X のご報告画像 247 枚によく出てくる言い回しで、ご報告の画像を作る。">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Kurenaido&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho+B1:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;700&family=Zen+Kurenaido&family=Zen+Maru+Gothic:wght@400;700&family=Klee+One:wght@400;600&family=Yuji+Syuku&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #121214; --surface: #1a1a19; --line: #2c2c2a; --fg: #f0efec; --fg2: #c3c2b7; --dim: #8a8a84; --accent: #5cc8ff;
@@ -81,7 +81,8 @@
     <label class="field"><span>名前</span><input id="name" value="やまだ" maxlength="24"></label>
     <div class="field"><span>何のご報告か</span><div class="pills" id="kinds" role="group" aria-label="何のご報告か"></div></div>
     <label class="field"><span id="x-l"></span><input id="x" maxlength="60"></label>
-    <div class="field"><span>見た目</span><div class="pills" id="looks" role="group" aria-label="見た目"></div></div>
+    <div class="field"><span>デザイン（集めたご報告画像に出てくる形から）</span><div class="pills" id="looks" role="group" aria-label="デザイン"></div></div>
+    <div class="field"><span>フォント</span><div class="pills" id="fonts" role="group" aria-label="フォント"></div></div>
     <div class="acts">
       <button id="roll">言い回しを変える</button>
       <a class="main" id="save" download="gohoukoku.png" href="#">画像を保存</a>
@@ -126,13 +127,27 @@ const SLOTS = [
   () => ['まだまだ未熟な私ですが、これまで以上に精進してまいります。', '新たな気持ちで、一歩ずつ歩んでまいります。'],
   () => ['今後とも温かく見守っていただけますと幸いです。', '今後とも何卒よろしくお願い申し上げます。'],
 ];
+const FONTS = {
+  明朝: { f: '"Shippori Mincho B1"', w: 600, t: 800 },
+  ゴシック: { f: '"Zen Kaku Gothic New"', w: 400, t: 700 },
+  丸ゴシック: { f: '"Zen Maru Gothic"', w: 400, t: 700 },
+  手書き: { f: '"Zen Kurenaido"', w: 400, t: 400 },
+  ペン字: { f: '"Klee One"', w: 400, t: 600 },
+  筆: { f: '"Yuji Syuku"', w: 400, t: 400 },
+};
+// 集めた 247 枚に出てくる形。白地が 240 枚でいちばん多く、黒地・グラデは少し
 const LOOKS = {
-  白い紙: { bg: '#fdfcf8', ink: '#1b1b1b', font: '"Shippori Mincho B1"', w: 600, title: 800, lines: false },
-  メモ: { bg: '#ffffff', ink: '#111111', font: '"Zen Kaku Gothic New"', w: 400, title: 700, lines: false, memo: true },
-  手書き: { bg: '#f6f1e4', ink: '#2a2a3a', font: '"Zen Kurenaido"', w: 400, title: 400, lines: true },
+  白い紙: { font: '明朝' },                                     // 左寄せ、右下に日付と名前
+  事務所の文書: { font: 'ゴシック', bracket: true, small: true },  // 【ご報告】、日付は右上
+  便箋: { font: '手書き', bg: '#f6f1e4', ink: '#2a2a3a', lines: true },
+  メモ: { font: 'ゴシック', bg: '#ffffff', ink: '#111111', memo: true },
+  中央そろえ: { font: '明朝', center: true },
+  枠つき: { font: '明朝', frame: true },
+  黒地: { font: '明朝', bg: '#0e0e0e', ink: '#f2f2f2', center: true, dark: true },
+  グラデ: { font: '丸ゴシック', grad: ['#f4a9c0', '#8c7ad3'], ink: '#ffffff', center: true, dark: true },
 };
 
-let D, kind = '結婚', look = '白い紙', seed = SLOTS.map(() => 0);
+let D, kind = '結婚', look = '白い紙', font = '', seed = SLOTS.map(() => 0);
 const today = new Date(), DATE = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
 const pillset = (el, keys, cur, on) => {
@@ -158,12 +173,16 @@ const wrap = (ctx, text, max) => {
 
 let drawing = 0;
 const draw = async () => {
-  const my = ++drawing, L = LOOKS[look], S = sentences(), name = $('name').value.trim() || 'わたし';
-  const all = 'ご報告' + S.join('') + DATE + name + 'verytired.net/notice ご報告ジェネレータで作成 < メモ 完了';
-  await Promise.all([document.fonts.load(`${L.w} 40px ${L.font}`, all), document.fonts.load(`${L.title} 40px ${L.font}`, 'ご報告'), document.fonts.load('400 20px "Zen Kaku Gothic New"', all)]);
+  const my = ++drawing, L = { bg: '#fdfcf8', ink: '#1b1b1b', ...LOOKS[look] }, F = FONTS[font || L.font], S = sentences(), name = $('name').value.trim() || 'わたし';
+  const title = L.bracket ? '【ご報告】' : 'ご報告';
+  const all = title + S.join('') + DATE + name + 'verytired.github.io/notice ご報告ジェネレータで作成 〈 メモ 完了';
+  await Promise.all([document.fonts.load(`${F.w} 40px ${F.f}`, all), document.fonts.load(`${F.t} 40px ${F.f}`, title), document.fonts.load('400 20px "Zen Kaku Gothic New"', all)]);
   if (my !== drawing) return;
-  const cv = $('cv'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = 110;
-  ctx.fillStyle = L.bg; ctx.fillRect(0, 0, W, H);
+  const cv = $('cv'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = L.frame ? 140 : 110;
+  if (L.grad) { const g = ctx.createLinearGradient(0, 0, W * .3, H); g.addColorStop(0, L.grad[0]); g.addColorStop(1, L.grad[1]); ctx.fillStyle = g; }
+  else ctx.fillStyle = L.bg;
+  ctx.fillRect(0, 0, W, H);
+  if (L.frame) { ctx.strokeStyle = L.ink; ctx.lineWidth = 3; ctx.strokeRect(56, 56, W - 112, H - 112); ctx.lineWidth = 1.5; ctx.strokeRect(70, 70, W - 140, H - 140); }
   let top = 150;
   if (L.memo) {   // メモアプリ風の上の帯
     ctx.fillStyle = '#d9a400'; ctx.font = '400 34px "Zen Kaku Gothic New"'; ctx.textAlign = 'left'; ctx.fillText('〈 メモ', 48, 84);
@@ -171,27 +190,29 @@ const draw = async () => {
     ctx.textAlign = 'center'; ctx.fillText(DATE, W / 2, 150); top = 200;
   }
   ctx.fillStyle = L.ink; ctx.textBaseline = 'alphabetic';
-  ctx.font = `${L.title} ${L.memo ? 64 : 76}px ${L.font}`; ctx.textAlign = L.memo ? 'left' : 'center';
-  ctx.fillText('ご報告', L.memo ? pad - 40 : W / 2, top + 60);
+  if (L.bracket) { ctx.font = `${F.w} 30px ${F.f}`; ctx.textAlign = 'right'; ctx.fillText(DATE, W - pad, top - 20); }
+  ctx.font = `${F.t} ${L.memo ? 64 : L.bracket ? 58 : 76}px ${F.f}`; ctx.textAlign = L.memo ? 'left' : 'center';
+  ctx.fillText(title, L.memo ? pad - 40 : W / 2, top + 60);
   // 本文が収まる大きさまで字を小さくする
   const bodyTop = top + 160, bodyBottom = H - 300, max = W - pad * 2;
-  let size = 42, lines;
+  let size = L.small ? 34 : 42, lines;
   for (; size > 24; size -= 2) {
-    ctx.font = `${L.w} ${size}px ${L.font}`;
+    ctx.font = `${F.w} ${size}px ${F.f}`;
     lines = S.flatMap((s, i) => [...wrap(ctx, s, max), ...(i === 0 ? [''] : [])]);
     if (lines.length * size * 1.85 <= bodyBottom - bodyTop) break;
   }
-  const lh = size * 1.85;
+  const lh = size * 1.85, x = L.center ? W / 2 : pad;
   if (L.lines) { ctx.strokeStyle = 'rgb(60 80 140 / .18)'; ctx.lineWidth = 2; for (let y = bodyTop + lh * .35; y < H - 120; y += lh) { ctx.beginPath(); ctx.moveTo(pad - 30, y); ctx.lineTo(W - pad + 30, y); ctx.stroke(); } }
-  ctx.textAlign = 'left';
-  lines.forEach((t, i) => ctx.fillText(t, pad, bodyTop + i * lh));
-  ctx.textAlign = 'right'; ctx.font = `${L.w} ${Math.max(size, 34)}px ${L.font}`;
-  const sy = Math.min(bodyTop + lines.length * lh + 40, H - 200);
-  if (!L.memo) ctx.fillText(DATE, W - pad, sy);
-  ctx.fillText(name, W - pad, sy + Math.max(size, 34) * 1.7);
+  ctx.textAlign = L.center ? 'center' : 'left';
+  lines.forEach((t, i) => ctx.fillText(t, x, bodyTop + i * lh));
+  // 日付と名前：中央そろえなら真ん中、ほかは右下
+  const ss = Math.max(size, 34), sx = L.center ? W / 2 : W - pad, sy = Math.min(bodyTop + lines.length * lh + 40, H - 200);
+  ctx.textAlign = L.center ? 'center' : 'right'; ctx.font = `${F.w} ${ss}px ${F.f}`;
+  if (!L.memo && !L.bracket) ctx.fillText(DATE, sx, sy);
+  ctx.fillText(name, sx, sy + ss * 1.7);
   // 作ったことの印（外さない）
-  ctx.textAlign = 'center'; ctx.fillStyle = 'rgb(0 0 0 / .38)'; ctx.font = '400 22px "Zen Kaku Gothic New"';
-  ctx.fillText('verytired.net/notice ご報告ジェネレータで作成', W / 2, H - 44);
+  ctx.textAlign = 'center'; ctx.fillStyle = L.dark ? 'rgb(255 255 255 / .55)' : 'rgb(0 0 0 / .38)'; ctx.font = '400 22px "Zen Kaku Gothic New"';
+  ctx.fillText('verytired.github.io/notice ご報告ジェネレータで作成', W / 2, H - (L.frame ? 24 : 44));
   cv.toBlob(b => { if (my !== drawing) return; const a = $('save'); if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href); a.href = URL.createObjectURL(b); });
   score(S.join(''));
 };
@@ -208,6 +229,7 @@ const score = text => {
 
 pillset($('kinds'), Object.keys(KINDS), kind, setKind);
 pillset($('looks'), Object.keys(LOOKS), look, k => { look = k; draw(); });
+pillset($('fonts'), ['デザインに合わせる', ...Object.keys(FONTS)], 'デザインに合わせる', k => { font = FONTS[k] ? k : ''; draw(); });
 $('roll').onclick = () => { seed = seed.map(s => s + 1 + Math.floor(Math.random() * 3)); draw(); };
 $('name').oninput = $('x').oninput = () => draw();
 setKind(kind);
