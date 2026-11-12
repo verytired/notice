@@ -2,7 +2,7 @@
 
 A data visualization of "ご報告" (personal announcement) images posted on X — marriages, pregnancies, retirements, apologies and more — sorted by what they announce and the phrases they use.
 
-- Live: https://verytired.github.io/notice/
+- Live: https://verytired.net/web/notice/
 - `index.html` — the page; reads `data.json`
 - `generator/` — make your own announcement image from the common phrases
 - `crawler/` — rebuild the data (macOS)

@@ -176,7 +176,7 @@ let drawing = 0;
 const draw = async () => {
   const my = ++drawing, L = { bg: '#fdfcf8', ink: '#1b1b1b', ...LOOKS[look] }, F = FONTS[font || L.font], S = sentences(), name = $('name').value.trim() || 'わたし';
   const title = L.bracket ? '【ご報告】' : 'ご報告';
-  const all = title + S.join('') + DATE + name + 'verytired.github.io/notice ご報告ジェネレータで作成 〈 メモ 完了';
+  const all = title + S.join('') + DATE + name + 'verytired.net/web/notice ご報告ジェネレータで作成 〈 メモ 完了';
   await Promise.all([document.fonts.load(`${F.w} 40px ${F.f}`, all), document.fonts.load(`${F.t} 40px ${F.f}`, title), document.fonts.load('400 20px "Zen Kaku Gothic New"', all)]);
   if (my !== drawing) return;
   const cv = $('cv'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, pad = L.frame ? 140 : 110;
@@ -213,7 +213,7 @@ const draw = async () => {
   ctx.fillText(name, sx, sy + ss * 1.7);
   // 作ったことの印（外さない）
   ctx.textAlign = 'center'; ctx.fillStyle = L.dark ? 'rgb(255 255 255 / .55)' : 'rgb(0 0 0 / .38)'; ctx.font = '400 22px "Zen Kaku Gothic New"';
-  ctx.fillText('verytired.github.io/notice ご報告ジェネレータで作成', W / 2, H - (L.frame ? 24 : 44));
+  ctx.fillText('verytired.net/web/notice ご報告ジェネレータで作成', W / 2, H - (L.frame ? 24 : 44));
   cv.toBlob(b => { if (my !== drawing) return; const a = $('save'); if (a.href.startsWith('blob:')) URL.revokeObjectURL(a.href); a.href = URL.createObjectURL(b); });
   score(S.join(''));
 };
